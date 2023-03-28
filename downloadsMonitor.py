@@ -1,43 +1,56 @@
 import os
 import shutil
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 import time
 from datetime import datetime
+from typing import Optional
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 class ClassifyHandler(FileSystemEventHandler):
     def on_created(self, event):
-        if event.is_directory:
-            return None
-        file_path = event.src_path
-        classify_file(file_path)
+        if not event.is_directory:
+            file_path = event.src_path
+            classify_file(file_path)
 
 
-def classify_file(file_path):
+def classify_file(file_path: str) -> None:
     file_name, file_ext = os.path.splitext(file_path)
     file_ext = file_ext.lower()
+    destination = get_destination_folder(file_ext)
+
+    if not destination:
+        print(f"{file_path} has an unsupported file extension.")
+        return
+
+    destination_path = os.path.join(destination, os.path.basename(file_path))
+    destination_path = check_destination_path(destination_path)
+    shutil.move(file_path, destination_path)
+    print(f'Moved {file_path} to {destination_path}')
+
+
+def get_destination_folder(file_ext: str) -> Optional[str]:
     image_exts = ['.jpeg', '.jpg', '.png']
     pdf_exts = ['.pdf']
     script_exts = ['.py', '.js', '.rs']
 
     if file_ext in image_exts:
-        destination = "Images/"
+        return "Images/"
     elif file_ext in pdf_exts:
-        destination = "PDFs/"
+        return "PDFs/"
     elif file_ext in script_exts:
-        destination = "Scripts/"
+        return "Scripts/"
     else:
-        print(f"{file_path} has an unsupported file extension.")
-        return
+        return None
 
-    destination_path = os.path.join(destination, file_name + file_ext)
+
+def check_destination_path(destination_path: str) -> str:
     if os.path.exists(destination_path):
+        file_name, file_ext = os.path.splitext(destination_path)
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        new_file_name = f"{file_name} {current_time}{file_ext}"
-        destination_path = os.path.join(destination, new_file_name)
+        return f"{file_name} {current_time}{file_ext}"
+    return destination_path
 
-    shutil.move(file_path, destination_path)
-    print(f'Moved {file_path} to {destination_path}')
 
 downloads_path = "/path/to/Downloads/"
 
